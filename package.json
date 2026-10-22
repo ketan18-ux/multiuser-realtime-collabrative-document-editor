@@ -1,0 +1,19 @@
+{
+  "name": "collaborative-document-editor",
+  "version": "1.0.0",
+  "description": "Collaborative Multi-User Real-Time Document Editor",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -c serve.json .",
+    "dev": "npx serve -c serve.json ."
+  },
+  "keywords": [
+    "document-editor",
+    "supabase",
+    "indexeddb",
+    "offline-first",
+    "service-worker"
+  ],
+  "author": "",
+  "license": "MIT"
+}

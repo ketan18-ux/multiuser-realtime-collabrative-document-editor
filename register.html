@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Create an account for Collaborative Document Editor">
+  <title>Register — Document Editor</title>
+  <link rel="stylesheet" href="./css/auth.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <main class="auth-container">
+    <div class="auth-card">
+      <header class="auth-header">
+        <h1 class="app-title">Document Editor</h1>
+        <p class="auth-subtitle">Create a new account</p>
+      </header>
+
+      <nav class="auth-tabs" aria-label="Authentication navigation">
+        <a href="login.html" class="auth-tab">Sign In</a>
+        <a href="register.html" class="auth-tab active" aria-current="page">Register</a>
+      </nav>
+
+      <div id="error-message" class="message-box message-error" hidden role="alert" aria-live="assertive"></div>
+      <div id="success-message" class="message-box message-success" hidden role="status" aria-live="polite"></div>
+      <div id="verification-notice" class="message-box message-info" hidden role="status" aria-live="polite"></div>
+
+      <form id="register-form" class="auth-form" novalidate>
+        <div class="form-group">
+          <label for="full-name">Full Name</label>
+          <input type="text" id="full-name" name="fullName" required autocomplete="name" placeholder="John Doe" aria-required="true">
+          <span id="full-name-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="name@example.com" aria-required="true">
+          <span id="email-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="••••••••" aria-required="true">
+            <button type="button" id="btn-show-password" class="btn-toggle-password" aria-label="Show password" title="Show password">Show</button>
+          </div>
+          <span id="password-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password">Confirm Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="confirm-password" name="confirmPassword" required autocomplete="new-password" placeholder="••••••••" aria-required="true">
+            <button type="button" id="btn-show-confirm-password" class="btn-toggle-password" aria-label="Show confirm password" title="Show confirm password">Show</button>
+          </div>
+          <span id="confirm-password-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <button type="submit" id="btn-register" class="btn-submit">
+          <span id="loading-indicator" class="loading-spinner" hidden aria-hidden="true"></span>
+          <span id="btn-text">Create Account</span>
+        </button>
+      </form>
+
+      <footer class="auth-footer">
+        Already have an account? <a href="login.html" id="link-login">Sign in here</a>
+      </footer>
+    </div>
+  </main>
+
+  <script type="module">
+    import { registerUser, restoreSession } from "./js/auth.js";
+
+    // If already logged in, redirect to index.html
+    (async () => {
+      try {
+        if (typeof restoreSession === "function") {
+          const session = await restoreSession();
+          if (session) {
+            window.location.replace("./index.html");
+          }
+        }
+      } catch (err) {
+        console.warn("Session check:", err);
+      }
+    })();
+
+    const registerForm = document.getElementById("register-form");
+    const fullNameInput = document.getElementById("full-name");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const confirmPasswordInput = document.getElementById("confirm-password");
+
+    const btnShowPassword = document.getElementById("btn-show-password");
+    const btnShowConfirmPassword = document.getElementById("btn-show-confirm-password");
+    const btnRegister = document.getElementById("btn-register");
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const btnText = document.getElementById("btn-text");
+
+    const errorMessage = document.getElementById("error-message");
+    const successMessage = document.getElementById("success-message");
+    const verificationNotice = document.getElementById("verification-notice");
+
+    const fullNameError = document.getElementById("full-name-error");
+    const emailError = document.getElementById("email-error");
+    const passwordError = document.getElementById("password-error");
+    const confirmPasswordError = document.getElementById("confirm-password-error");
+
+    // Password visibility toggle helpers
+    function setupPasswordToggle(button, input, labelPrefix) {
+      if (button && input) {
+        button.addEventListener("click", () => {
+          const isPassword = input.getAttribute("type") === "password";
+          input.setAttribute("type", isPassword ? "text" : "password");
+          button.textContent = isPassword ? "Hide" : "Show";
+          const label = isPassword ? `Hide ${labelPrefix}` : `Show ${labelPrefix}`;
+          button.setAttribute("aria-label", label);
+          button.setAttribute("title", label);
+        });
+      }
+    }
+
+    setupPasswordToggle(btnShowPassword, passwordInput, "password");
+    setupPasswordToggle(btnShowConfirmPassword, confirmPasswordInput, "confirm password");
+
+    function clearErrors() {
+      if (errorMessage) {
+        errorMessage.textContent = "";
+        errorMessage.hidden = true;
+      }
+      if (successMessage) {
+        successMessage.textContent = "";
+        successMessage.hidden = true;
+      }
+      if (verificationNotice) {
+        verificationNotice.textContent = "";
+        verificationNotice.hidden = true;
+      }
+      if (fullNameError) fullNameError.textContent = "";
+      if (emailError) emailError.textContent = "";
+      if (passwordError) passwordError.textContent = "";
+      if (confirmPasswordError) confirmPasswordError.textContent = "";
+    }
+
+    if (registerForm) {
+      registerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+
+        const fullName = fullNameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        let hasError = false;
+
+        // 1. Full name validation: required, min 2 chars
+        if (!fullName || fullName.length < 2) {
+          if (fullNameError) fullNameError.textContent = "Full name must be at least 2 characters.";
+          hasError = true;
+        }
+
+        // 2. Email validation: valid format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) {
+          if (emailError) emailError.textContent = "Please enter a valid email address.";
+          hasError = true;
+        }
+
+        // 3. Password validation: min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit (or symbol)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{8,}$/;
+        if (!password || !passwordRegex.test(password)) {
+          if (passwordError) {
+            passwordError.textContent = "Password must be at least 8 characters and include uppercase, lowercase, and a number or symbol.";
+          }
+          hasError = true;
+        }
+
+        // 4. Confirm password validation: must match
+        if (password !== confirmPassword) {
+          if (confirmPasswordError) confirmPasswordError.textContent = "Passwords do not match.";
+          hasError = true;
+        }
+
+        if (hasError) return;
+
+        // Set loading state
+        btnRegister.disabled = true;
+        if (loadingIndicator) loadingIndicator.hidden = false;
+        if (btnText) btnText.textContent = "Creating Account…";
+
+        try {
+          const result = await registerUser(fullName, email, password);
+          if (result && (!result.success || result.error)) {
+            const errStr = (result.error && typeof result.error === "object") ? result.error.message : result.error;
+            throw new Error(errStr || "Failed to create account. Please try again.");
+          }
+
+          if (result && result.needsVerification) {
+            if (verificationNotice) {
+              verificationNotice.textContent = "Please check your email to verify your account before logging in.";
+              verificationNotice.hidden = false;
+            }
+            if (successMessage) {
+              successMessage.textContent = "Registration successful! A verification link has been sent to your email.";
+              successMessage.hidden = false;
+            }
+            registerForm.reset();
+          } else {
+            if (successMessage) {
+              successMessage.textContent = "Account created successfully! Redirecting to editor…";
+              successMessage.hidden = false;
+            }
+            registerForm.reset();
+            setTimeout(() => {
+              window.location.href = "./index.html";
+            }, 1200);
+          }
+        } catch (err) {
+          const message = (err && err.message) ? err.message : (typeof err === "string" ? err : "Failed to create account. Please try again.");
+          if (errorMessage) {
+            errorMessage.textContent = message;
+            errorMessage.hidden = false;
+          }
+        } finally {
+          btnRegister.disabled = false;
+          if (loadingIndicator) loadingIndicator.hidden = true;
+          if (btnText) btnText.textContent = "Create Account";
+        }
+      });
+    }
+
+    // Explicit navigation for Sign In tab and link
+    document.querySelectorAll('a[href*="login"]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = 'login.html';
+      });
+    });
+  </script>
+</body>
+</html>

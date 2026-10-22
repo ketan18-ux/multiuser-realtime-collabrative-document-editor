@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Collaborative Multi-User Real-Time Document Editor">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>Document Editor</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body class="app-layout">
+  <!-- Offline warning banner (hidden by default) -->
+  <div id="offline-banner" class="offline-banner" hidden>
+    You are offline. Changes will be saved locally.
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="topnav" role="banner">
+    <div class="topnav-left">
+      <span class="app-name">Document Editor</span>
+      <button id="btn-new" class="btn-secondary">New</button>
+      <button id="btn-save" class="btn-secondary">Save</button>
+      <button id="btn-save-as" class="btn-secondary">Save As</button>
+      <button id="btn-export" class="btn-secondary">Export</button>
+    </div>
+    <div class="topnav-right">
+      <span id="save-status" class="save-status"></span>
+      <span id="network-status" class="network-badge">Online</span>
+      <span id="user-display" class="user-display"></span>
+      <button id="btn-logout" class="btn-secondary">Logout</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" role="complementary">
+    <div class="sidebar-header">
+      <h2 class="sidebar-title">My Documents</h2>
+      <input type="search" id="search-docs" class="search-input" placeholder="Search documents…" aria-label="Search documents">
+    </div>
+    <ul id="document-list" class="document-list" role="list">
+      <!-- Populated by app.js -->
+    </ul>
+  </aside>
+
+  <!-- Main Editor -->
+  <main class="editor-main" role="main">
+    <!-- Empty state -->
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">📄</div>
+      <p>No document open.</p>
+      <p>Click <strong>New</strong> to create a document, or select one from the sidebar.</p>
+    </div>
+
+    <!-- Editor area (hidden until a document is open) -->
+    <div id="editor-area" class="editor-area" hidden>
+      <div class="editor-header">
+        <input type="text" id="document-title" class="document-title-input" placeholder="Document title…" aria-label="Document title" maxlength="200">
+      </div>
+      <div class="toolbar" role="toolbar" aria-label="Formatting toolbar">
+        <button class="toolbar-btn" data-command="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button class="toolbar-btn" data-command="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button class="toolbar-btn" data-command="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+        <span class="toolbar-sep"></span>
+        <button class="toolbar-btn" data-command="formatBlock" data-value="h1" title="Heading 1">H1</button>
+        <button class="toolbar-btn" data-command="formatBlock" data-value="h2" title="Heading 2">H2</button>
+        <button class="toolbar-btn" data-command="formatBlock" data-value="h3" title="Heading 3">H3</button>
+        <button class="toolbar-btn" data-command="formatBlock" data-value="p" title="Paragraph">¶</button>
+        <span class="toolbar-sep"></span>
+        <button class="toolbar-btn" data-command="insertUnorderedList" title="Bullet list">• List</button>
+        <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered list">1. List</button>
+        <span class="toolbar-sep"></span>
+        <button class="toolbar-btn" data-command="undo" title="Undo (Ctrl+Z)">↩</button>
+        <button class="toolbar-btn" data-command="redo" title="Redo (Ctrl+Y)">↪</button>
+      </div>
+      <div id="editor-content"
+           class="editor-content"
+           contenteditable="true"
+           role="textbox"
+           aria-multiline="true"
+           aria-label="Document content"
+           spellcheck="true">
+      </div>
+      <div class="editor-footer">
+        <span id="word-count">0 words</span>
+        <span class="footer-sep">·</span>
+        <span id="char-count">0 characters</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Save As Modal -->
+  <div id="modal-save-as" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-save-as-title">
+    <div class="modal-card">
+      <h3 id="modal-save-as-title" class="modal-title">Save As</h3>
+      <label for="save-as-title">Document Title</label>
+      <input type="text" id="save-as-title" class="modal-input" maxlength="200" placeholder="Enter a title…">
+      <p id="save-as-error" class="modal-error" hidden></p>
+      <div class="modal-actions">
+        <button id="btn-save-as-confirm" class="btn-primary">Save Copy</button>
+        <button id="btn-save-as-cancel" class="btn-secondary modal-cancel" data-close-modal>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div id="modal-delete" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-delete-title">
+    <div class="modal-card">
+      <h3 id="modal-delete-title" class="modal-title">Delete Document</h3>
+      <p id="modal-delete-msg">Are you sure you want to delete this document? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="btn-delete-confirm" class="btn-danger">Delete</button>
+        <button id="btn-delete-cancel" class="btn-secondary modal-cancel" data-close-modal>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div id="modal-rename" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-rename-title">
+    <div class="modal-card">
+      <h3 id="modal-rename-title" class="modal-title">Rename Document</h3>
+      <label for="rename-title">New Title</label>
+      <input type="text" id="rename-title" class="modal-input" maxlength="200" placeholder="Enter new title…">
+      <p id="rename-error" class="modal-error" hidden></p>
+      <div class="modal-actions">
+        <button id="btn-rename-confirm" class="btn-primary">Rename</button>
+        <button id="btn-rename-cancel" class="btn-secondary modal-cancel" data-close-modal>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unsaved Changes Modal -->
+  <div id="modal-unsaved" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-unsaved-title">
+    <div class="modal-card">
+      <h3 id="modal-unsaved-title" class="modal-title">Unsaved Changes</h3>
+      <p>You have unsaved changes. Do you want to save before leaving?</p>
+      <div class="modal-actions">
+        <button id="btn-unsaved-save" class="btn-primary">Save & Continue</button>
+        <button id="btn-unsaved-discard" class="btn-danger">Discard</button>
+        <button id="btn-unsaved-cancel" class="btn-secondary modal-cancel" data-close-modal>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

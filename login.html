@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to Collaborative Document Editor">
+  <title>Login — Document Editor</title>
+  <link rel="stylesheet" href="./css/auth.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <main class="auth-container">
+    <div class="auth-card">
+      <header class="auth-header">
+        <h1 class="app-title">Document Editor</h1>
+        <p class="auth-subtitle">Sign in to your account</p>
+      </header>
+
+      <nav class="auth-tabs" aria-label="Authentication navigation">
+        <a href="login.html" class="auth-tab active" aria-current="page">Sign In</a>
+        <a href="register.html" class="auth-tab">Register</a>
+      </nav>
+
+      <div id="error-message" class="message-box message-error" hidden role="alert" aria-live="assertive"></div>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="name@example.com" aria-required="true">
+          <span id="email-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" aria-required="true">
+            <button type="button" id="btn-show-password" class="btn-toggle-password" aria-label="Show password" title="Show password">Show</button>
+          </div>
+          <span id="password-error" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <button type="submit" id="btn-login" class="btn-submit">
+          <span id="loading-indicator" class="loading-spinner" hidden aria-hidden="true"></span>
+          <span id="btn-text">Sign In</span>
+        </button>
+      </form>
+
+      <footer class="auth-footer">
+        Don&apos;t have an account? <a href="register.html" id="link-register">Register here</a>
+      </footer>
+    </div>
+  </main>
+
+  <script type="module">
+    import { loginUser, restoreSession } from "./js/auth.js";
+
+    // If already logged in, redirect to index.html
+    (async () => {
+      try {
+        if (typeof restoreSession === "function") {
+          const session = await restoreSession();
+          if (session) {
+            window.location.replace("./index.html");
+          }
+        }
+      } catch (err) {
+        console.warn("Session check:", err);
+      }
+    })();
+
+    const loginForm = document.getElementById("login-form");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const btnShowPassword = document.getElementById("btn-show-password");
+    const btnLogin = document.getElementById("btn-login");
+    const errorMessage = document.getElementById("error-message");
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const btnText = document.getElementById("btn-text");
+    const emailError = document.getElementById("email-error");
+    const passwordError = document.getElementById("password-error");
+
+    // Toggle password visibility
+    if (btnShowPassword && passwordInput) {
+      btnShowPassword.addEventListener("click", () => {
+        const isPassword = passwordInput.getAttribute("type") === "password";
+        passwordInput.setAttribute("type", isPassword ? "text" : "password");
+        btnShowPassword.textContent = isPassword ? "Hide" : "Show";
+        btnShowPassword.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+        btnShowPassword.setAttribute("title", isPassword ? "Hide password" : "Show password");
+      });
+    }
+
+    function clearErrors() {
+      if (errorMessage) {
+        errorMessage.textContent = "";
+        errorMessage.hidden = true;
+      }
+      if (emailError) emailError.textContent = "";
+      if (passwordError) passwordError.textContent = "";
+    }
+
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        let hasError = false;
+
+        if (!email) {
+          if (emailError) emailError.textContent = "Email is required.";
+          hasError = true;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          if (emailError) emailError.textContent = "Please enter a valid email address.";
+          hasError = true;
+        }
+
+        if (!password) {
+          if (passwordError) passwordError.textContent = "Password is required.";
+          hasError = true;
+        }
+
+        if (hasError) return;
+
+        // Set loading state
+        btnLogin.disabled = true;
+        if (loadingIndicator) loadingIndicator.hidden = false;
+        if (btnText) btnText.textContent = "Signing in…";
+
+        try {
+          const result = await loginUser(email, password);
+          if (result && (!result.success || result.error)) {
+            const errStr = (result.error && typeof result.error === "object") ? result.error.message : result.error;
+            throw new Error(errStr || "Failed to sign in. Please verify your credentials.");
+          }
+          window.location.href = "./index.html";
+        } catch (err) {
+          const message = (err && err.message) ? err.message : (typeof err === "string" ? err : "Failed to sign in. Please verify your credentials.");
+          if (errorMessage) {
+            errorMessage.textContent = message;
+            errorMessage.hidden = false;
+          }
+        } finally {
+          btnLogin.disabled = false;
+          if (loadingIndicator) loadingIndicator.hidden = true;
+          if (btnText) btnText.textContent = "Sign In";
+        }
+      });
+    }
+
+    // Explicit navigation for Register tab and link
+    document.querySelectorAll('a[href*="register"]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = 'register.html';
+      });
+    });
+  </script>
+</body>
+</html>

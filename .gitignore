@@ -1,0 +1,57 @@
+# ==============================================================================
+# Git Ignore Configuration
+# Collaborative Multi-User Real-Time Document Editor
+# ==============================================================================
+
+# Environment variable files containing sensitive secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependency directories (if tools or local test servers are installed)
+node_modules/
+jspm_packages/
+
+# Operating system metadata files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Log and debug files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / IDE configuration files
+# Keep workspace recommendations (.vscode/extensions.json) but ignore user-specific settings
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Temporary cache and scratch files
+.cache/
+.parcel-cache/
+tmp/
+temp/
+.temp/
+
+# NOTE ON CONFIGURATION FILES:
+# - DO NOT ignore js/config.js:
+#   This file contains public placeholder credentials (SUPABASE_URL and SUPABASE_ANON_KEY)
+#   designed to be edited with your public Supabase credentials. It never contains secrets.
+#
+# - DO NOT ignore config/authorized-emails.js:
+#   This file contains documented template placeholders for team authorization.

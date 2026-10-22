@@ -1,0 +1,13 @@
+{
+  "public": ".",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/signin", "destination": "/login.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/signup", "destination": "/register.html" },
+    { "source": "/index", "destination": "/index.html" },
+    { "source": "/editor", "destination": "/index.html" },
+    { "source": "/", "destination": "/index.html" }
+  ]
+}
